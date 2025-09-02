@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Conservation of Mass – Pipe Flow Game</title>
+<style>
+  :root{
+    --bg:#0b1120; --panel:#0f172a; --ink:#e5e7eb; --muted:#94a3b8;
+    --accent:#22d3ee; --accent2:#60a5fa; --good:#34d399; --bad:#f87171;
+  }
+  *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial}
+  body{margin:0;background:radial-gradient(120% 120% at 50% 0%,#0b1024 0%,#0b1120 60%,#0a0f1e 100%);color:var(--ink)}
+  .wrap{display:grid;grid-template-columns:minmax(300px,1fr) 420px;gap:16px;padding:16px;max-width:1300px;margin:0 auto}
+  @media (max-width:980px){.wrap{grid-template-columns:1fr}}
+  .card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:16px;box-shadow:0 6px 30px rgba(0,0,0,.25)}
+  h1{font-size:24px;margin:0 0 6px} h2{font-size:16px;margin:12px 0 6px;color:var(--muted)}
+  canvas{width:100%;height:520px;border-radius:16px;display:block;background:linear-gradient(180deg,#07111f,#050c19)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  .ctrl{background:#0b1224;border:1px solid #233159;color:var(--ink);border-radius:12px;padding:8px 10px;width:100%}
+  .num{display:flex;gap:8px;align-items:center}
+  .btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#001018;padding:10px 12px;border-radius:12px;font-weight:700;cursor:pointer}
+  .btn.secondary{background:#0b1224;color:var(--ink);border:1px solid #24304f}
+  .pill{background:#0d1428;border:1px solid #25365c;padding:8px 10px;border-radius:12px;font-size:13px}
+  .good{border-color:#1f7a5c;color:#8cf1c6}.bad{border-color:#7a1f25;color:#f9a3a3}.warn{border-color:#7a5a1f;color:#ffd27a}
+  .tiny{font-size:11px;color:var(--muted)}
+  .switch{display:flex;gap:8px;background:#0b1224;border:1px solid #24304f;padding:4px;border-radius:12px}
+  .switch button{background:transparent;border:none;color:var(--muted);padding:6px 10px;border-radius:8px;cursor:pointer}
+  .switch .active{background:linear-gradient(135deg,#1b2a4a,#13203c);color:#cfe9ff}
+  .eq{font-family:ui-monospace,Consolas,monospace;background:#0b1224;border:1px dashed #2a3b62;border-radius:12px;padding:8px 10px;color:#b8c7ff}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h1>Conservation of Mass – Pipe Flow</h1>
+        <div class="switch" role="tablist">
+          <button id="modeExplore" class="active" aria-selected="true">Explore</button>
+          <button id="modeQuiz" aria-selected="false">Quiz</button>
+        </div>
+      </div>
+      <canvas id="scene" width="1200" height="520" aria-label="Pipe animation"></canvas>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+        <div class="pill"><b>Continuity error</b><br><span id="errText">0</span> %</div>
+        <div class="pill"><b>Hint</b><br><span class="tiny">Mass flow is conserved: ρ₁V₁A₁ = ρ₂V₂A₂</span></div>
+      </div>
+    </div>
+
+    <div class="card" id="panelExplore" aria-live="polite">
+      <h2>Inputs (Explore)</h2>
+      <div class="row">
+        <div><label for="D1">Inlet diameter D₁ (m)</label>
+          <input id="D1" class="ctrl" type="range" min="0.05" max="1.00" step="0.005" value="0.30">
+          <div class="num"><input id="D1n" type="number" class="ctrl" step="0.005" value="0.30"><span class="tiny">m</span></div></div>
+        <div><label for="D2">Outlet diameter D₂ (m)</label>
+          <input id="D2" class="ctrl" type="range" min="0.05" max="1.00" step="0.005" value="0.15">
+          <div class="num"><input id="D2n" type="number" class="ctrl" step="0.005" value="0.15"><span class="tiny">m</span></div></div>
+      </div>
+      <div class="row">
+        <div><label for="V1">Inlet velocity V₁ (m/s)</label>
+          <input id="V1" class="ctrl" type="range" min="0.2" max="6" step="0.1" value="1.5">
+          <div class="num"><input id="V1n" type="number" class="ctrl" step="0.1" value="1.5"><span class="tiny">m/s</span></div></div>
+        <div><label for="rho1">Density ρ₁ (kg/m³)</label>
+          <input id="rho1" class="ctrl" type="range" min="0.5" max="1200" step="0.5" value="1000">
+          <div class="num"><input id="rho1n" type="number" class="ctrl" step="0.5" value="1000"><span class="tiny">kg/m³</span></div></div>
+      </div>
+      <div class="row">
+        <div><label for="rho2">Density ρ₂ (kg/m³)</label>
+          <input id="rho2" class="ctrl" type="range" min="0.5" max="1200" step="0.5" value="1000">
+          <div class="num"><input id="rho2n" type="number" class="ctrl" step="0.5" value="1000"><span class="tiny">kg/m³</span></div></div>
+        <div><label>&nbsp;</label><button id="lockRho" class="btn" title="Set ρ₂ = ρ₁ and lock">Incompressible (ρ₂=ρ₁)</button></div>
+      </div>
+
+      <h2>Outputs</h2>
+      <div class="row3">
+        <div class="pill"><b>Area A₁</b><br><span id="A1">–</span> m²</div>
+        <div class="pill"><b>Area A₂</b><br><span id="A2">–</span> m²</div>
+        <div class="pill"><b>Continuity V₂</b><br><span id="V2">–</span> m/s</div>
+      </div>
+      <div class="row3" style="margin-top:8px">
+        <div class="pill"><b>Q (inlet)</b><br><span id="Q1">–</span> m³/s</div>
+        <div class="pill"><b>Q (outlet)</b><br><span id="Q2">–</span> m³/s</div>
+        <div class="pill"><b>ṁ (both)</b><br><span id="mdot">–</span> kg/s</div>
+      </div>
+
+      <h2>Visuals & Options</h2>
+      <div class="row">
+        <div><button id="toggleCV" class="btn secondary">Show Control Volume</button></div>
+        <div><button id="resetAll" class="btn secondary">Reset</button></div>
+      </div>
+
+      <h2>Equations (from lecture)</h2>
+      <div class="eq">ṁ = ρ V A &nbsp;&nbsp; | &nbsp;&nbsp; Continuity: ρ₁V₁A₁ = ρ₂V₂A₂</div>
+      <div class="tiny" style="margin-top:6px">Matches your slides’ control-volume/RTT mass balance. :contentReference[oaicite:1]{index=1}</div>
+    </div>
+
+    <div class="card" id="panelQuiz" style="display:none">
+      <h2>Quiz mode</h2>
+      <div class="tiny">Each problem gives ρ₁, ρ₂, D₁, D₂, V₁. Compute V₂. Answers within ±1% (or ±0.01 m/s) count as correct.</div>
+      <div class="pill" style="margin-top:8px"><b>Current problem</b><br><span id="qText">Press Start.</span></div>
+      <div class="row" style="margin-top:8px">
+        <div><label for="answer">Your answer</label><input id="answer" class="ctrl" type="number" step="0.0001" placeholder="Enter V₂ (m/s)"></div>
+        <div><label>&nbsp;</label><button id="check" class="btn" disabled>Check</button></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="start" class="btn">Start Quiz</button>
+        <button id="next" class="btn secondary" disabled>Next</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div class="pill"><b>Score</b><br><span id="score">0/0</span></div>
+        <div class="pill"><b>What you’re solving</b><br><span id="solveFor">V₂ (m/s)</span></div>
+      </div>
+      <div id="feedback" class="pill warn" style="margin-top:8px; display:none"></div>
+      <h2>Worked solution</h2>
+      <div id="work" class="eq">—</div>
+    </div>
+  </div>
+
+<script>
+/* ===== Utilities ===== */
+const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+const fmt=(x,dec=3)=>Number.isFinite(x)?Number(x).toFixed(dec):'–';
+const A = d => Math.PI*(d*d)/4;
+const scene=document.getElementById('scene'); const ctx=scene.getContext('2d',{alpha:false});
+function byId(id){return document.getElementById(id);}
+
+/* ===== Elements ===== */
+const els={D1:byId('D1'),D1n:byId('D1n'),D2:byId('D2'),D2n:byId('D2n'),
+  V1:byId('V1'),V1n:byId('V1n'),rho1:byId('rho1'),rho1n:byId('rho1n'),
+  rho2:byId('rho2'),rho2n:byId('rho2n'),A1:byId('A1'),A2:byId('A2'),V2:byId('V2'),
+  Q1:byId('Q1'),Q2:byId('Q2'),mdot:byId('mdot'),errText:byId('errText'),
+  lockRho:byId('lockRho'),toggleCV:byId('toggleCV'),resetAll:byId('resetAll'),
+  modeExplore:byId('modeExplore'),modeQuiz:byId('modeQuiz'),
+  panelExplore:byId('panelExplore'),panelQuiz:byId('panelQuiz'),
+  start:byId('start'),check:byId('check'),next:byId('next'),
+  qText:byId('qText'),answer:byId('answer'),score:byId('score'),
+  solveFor:byId('solveFor'),feedback:byId('feedback'),work:byId('work')};
+
+/* ===== State ===== */
+const cvState={show:false};
+let S={D1:0.30,D2:0.15,V1:1.5,rho1:1000,rho2:1000,V2:0,Q1:0,Q2:0,mdot:0};
+
+/* ===== Bind inputs ===== */
+[
+ ['D1',0.05,1.0,0.005],['D2',0.05,1.0,0.005],['V1',0.2,6.0,0.1],
+ ['rho1',0.5,1200,0.5],['rho2',0.5,1200,0.5],
+].forEach(([k,min,max,step])=>{
+  const r=els[k], n=els[k+'n'];
+  const sync=(val)=>{ val=clamp(parseFloat(val),min,max); r.value=val; n.value=val; S[k]=val; compute(); };
+  r.addEventListener('input',e=>sync(e.target.value)); n.addEventListener('change',e=>sync(e.target.value));
+});
+els.lockRho.addEventListener('click',()=>{els.rho2.value=els.rho1.value;els.rho2n.value=els.rho1n.value;S.rho2=S.rho1;compute();});
+els.toggleCV.addEventListener('click',()=>{cvState.show=!cvState.show;els.toggleCV.textContent=cvState.show?'Hide Control Volume':'Show Control Volume';});
+els.resetAll.addEventListener('click',()=>{[['D1',0.30],['D2',0.15],['V1',1.5],['rho1',1000],['rho2',1000]].forEach(([k,v])=>{els[k].value=v;els[k+'n'].value=v;S[k]=v;});compute();});
+
+/* ===== Mode switching ===== */
+function setMode(which){
+  if(which==='explore'){els.modeExplore.classList.add('active');els.modeQuiz.classList.remove('active');els.panelExplore.style.display='block';els.panelQuiz.style.display='none';}
+  else{els.modeQuiz.classList.add('active');els.modeExplore.classList.remove('active');els.panelExplore.style.display='none';els.panelQuiz.style.display='block';}
+}
+els.modeExplore.addEventListener('click',()=>setMode('explore'));
+els.modeQuiz.addEventListener('click',()=>setMode('quiz'));
+
+/* ===== Physics ===== */
+function compute(){
+  const A1=A(S.D1), A2=A(S.D2);
+  const Q1=S.V1*A1;
+  const V2=(S.rho1*S.V1*A1)/(S.rho2*A2);
+  const Q2=V2*A2;
+  const mdot=S.rho1*Q1;
+  const err=100*Math.abs((S.rho1*Q1 - S.rho2*Q2)/(S.rho1*Q1||1));
+  S.V2=V2; S.Q1=Q1; S.Q2=Q2; S.mdot=mdot;
+  els.A1.textContent=fmt(A1); els.A2.textContent=fmt(A2);
+  els.V2.textContent=fmt(V2); els.Q1.textContent=fmt(Q1);
+  els.Q2.textContent=fmt(Q2); els.mdot.textContent=fmt(mdot);
+  els.errText.textContent=fmt(err,2);
+}
+compute();
+
+/* ===== Pipe geometry & visuals ===== */
+const geom={left:80,right:scene.width-80,cy:scene.height*0.5, wall:14, scale:115};
+function innerRadiusPx(x){
+  const t=(x-geom.left)/(geom.right-geom.left);
+  const r1=(S.D1*0.5)*geom.scale, r2=(S.D2*0.5)*geom.scale;
+  return Math.max(6, (1-t)*r1 + t*r2) - 2;
+}
+function drawPipe(){
+  const {left,right,cy,wall}=geom;
+  const r1o=(S.D1*0.5)*geom.scale+wall;
+  const r2o=(S.D2*0.5)*geom.scale+wall;
+  const r1i=(S.D1*0.5)*geom.scale;
+  const r2i=(S.D2*0.5)*geom.scale;
+
+  // Background
+  ctx.fillStyle='#07111f'; ctx.fillRect(0,0,scene.width,scene.height);
+
+  // Outer metallic shell
+  const gradMetal=ctx.createLinearGradient(left,cy-r1o,right,cy-r2o);
+  gradMetal.addColorStop(0,'#3b4452'); gradMetal.addColorStop(0.5,'#1f2937'); gradMetal.addColorStop(1,'#2a3342');
+  ctx.fillStyle=gradMetal; pathTaperedRing(left,cy,r1o,right,cy,r2o,wall*1.6); ctx.fill();
+
+  // Inner blue fluid
+  const gradFluid=ctx.createLinearGradient(left,cy-r1i,right,cy-r2i);
+  gradFluid.addColorStop(0,'rgba(90,180,255,0.35)');
+  gradFluid.addColorStop(1,'rgba(50,220,255,0.28)');
+  ctx.fillStyle=gradFluid; pathTaperedPipe(left,cy,r1i-2,right,cy,r2i-2); ctx.fill();
+
+  // Specular highlight
+  ctx.save(); ctx.globalAlpha=0.35; ctx.fillStyle='white';
+  pathTaperedPipe(left,cy,r1i*0.60,right,cy,r2i*0.60); ctx.fill(); ctx.restore();
+
+  // Beveled rims
+  drawRim(left,cy,r1i,wall,true); drawRim(right,cy,r2i,wall,false);
+
+  // Control volume overlay
+  if(cvState.show){
+    ctx.save(); ctx.setLineDash([10,8]); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.7)';
+    const pad=24, top=cy-(r1i>r2i?r1i:r2i)-pad;
+    ctx.strokeRect(left+pad, top, (right-left)-2*pad, (r1i+r2i)+2*pad); ctx.restore();
+  }
+
+  // Path for clipping
+  const p=new Path2D(); buildTaperedPath(p,left,cy,r1i-2,right,cy,r2i-2); return p;
+}
+function pathTaperedPipe(x1,y1,r1,x2,y2,r2){
+  const k=0.52;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1-(r1));
+  ctx.bezierCurveTo((x1+x2)*k, y1-(r1),(x1+x2)*(1-k), y2-(r2), x2, y2-(r2));
+  ctx.lineTo(x2, y2+(r2));
+  ctx.bezierCurveTo((x1+x2)*(1-k), y2+(r2),(x1+x2)*k, y1+(r1), x1, y1+(r1));
+  ctx.closePath();
+}
+function pathTaperedRing(x1,y1,r1,x2,y2,r2,thick){
+  const k=0.52;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1-(r1));
+  ctx.bezierCurveTo((x1+x2)*k, y1-(r1),(x1+x2)*(1-k), y2-(r2), x2, y2-(r2));
+  ctx.lineTo(x2, y2-(r2-thick));
+  ctx.bezierCurveTo((x1+x2)*(1-k), y2-(r2-thick),(x1+x2)*k, y1-(r1-thick), x1, y1-(r1-thick));
+  ctx.closePath();
+
+  ctx.beginPath();
+  ctx.moveTo(x1, y1+(r1-thick));
+  ctx.bezierCurveTo((x1+x2)*k, y1+(r1-thick),(x1+x2)*(1-k), y2+(r2-thick), x2, y2+(r2-thick));
+  ctx.lineTo(x2, y2+(r2));
+  ctx.bezierCurveTo((x1+x2)*(1-k), y2+(r2),(x1+x2)*k, y1+(r1), x1, y1+(r1));
+  ctx.closePath();
+}
+function buildTaperedPath(p,x1,y1,r1,x2,y2,r2){
+  const k=0.52;
+  p.moveTo(x1, y1-(r1));
+  p.bezierCurveTo((x1+x2)*k, y1-(r1),(x1+x2)*(1-k), y2-(r2), x2, y2-(r2));
+  p.lineTo(x2, y2+(r2));
+  p.bezierCurveTo((x1+x2)*(1-k), y2+(r2),(x1+x2)*k, y1+(r1), x1, y1+(r1));
+  p.closePath();
+}
+function drawRim(x,y,ri,wall,atInlet){
+  ctx.save();
+  const ro=ri+wall*1.1;
+  const grad=ctx.createRadialGradient(x+(atInlet?8:-8),y,ri,x,y,ro);
+  grad.addColorStop(0,'#8fb5ff'); grad.addColorStop(0.4,'#4176c7');
+  grad.addColorStop(0.41,'#263246'); grad.addColorStop(1,'#0e1625');
+  ctx.fillStyle=grad;
+  ctx.beginPath(); ctx.ellipse(x,y, ro, ro*0.97, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha=0.5;
+  ctx.beginPath(); ctx.ellipse(x,y, ri+3, (ri+3)*0.97, 0, 0, Math.PI*2); ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.lineWidth=2; ctx.stroke();
+  ctx.restore();
+}
+
+/* ===== Dense, uniform particle field ===== */
+const particles=[];
+const COLS=90, ROWS=12; // dense, uniform tracers
+function seedParticles(){
+  particles.length=0;
+  for(let ci=0; ci<COLS; ci++){
+    const tx=(ci+0.5)/COLS;
+    const xBase=geom.left + tx*(geom.right-geom.left);
+    const x=xBase + (Math.random()-0.5)*4;
+    const r=innerRadiusPx(x)-4;
+    for(let ri=0; ri<ROWS; ri++){
+      const frac=((ri+0.5)/ROWS)*2 - 1;
+      const f=clamp(frac + (Math.random()-0.5)*(2/ROWS)*0.6, -1, 1);
+      const y=geom.cy + f * 0.95 * r;
+      particles.push({x,y,frac:f,radius:1.4+Math.random()*1.2,jitter:(Math.random()*0.25+0.15)});
+    }
+  }
+}
+seedParticles();
+
+function localVelocity(x){
+  const t=(x-geom.left)/(geom.right-geom.left);
+  const rho=S.rho1*(1-t)+S.rho2*t;
+  const d=(1-t)*S.D1 + t*S.D2; const A_local=A(d);
+  const mdot=S.rho1*S.V1*A(S.D1);
+  return clamp(mdot/(rho*(A_local||1e-6)), 0.05, 10);
+}
+function stepParticle(p){
+  const v=localVelocity(p.x);
+  p.x += v*1.6;
+  p.y += (Math.random()-0.5)*p.jitter;
+  if(p.x>geom.right-6){
+    p.x=geom.left+6;
+    const r=innerRadiusPx(p.x)-4;
+    p.y=geom.cy + p.frac * 0.95 * r;
+  }
+  if(p.x<geom.left+6) p.x=geom.left+6;
+  const rIn=innerRadiusPx(p.x)-3;
+  const dy=p.y-geom.cy;
+  if(Math.abs(dy)>rIn){ p.y=geom.cy + Math.sign(dy)*(rIn-0.5); }
+}
+
+/* ===== Quiz engine: ALWAYS give rho1, rho2, D1, D2, V1; ask for V2 ===== */
+const quiz={n:0,right:0,solution:null};
+els.start.addEventListener('click',()=>startQuiz());
+els.check.addEventListener('click',()=>checkAnswer());
+els.next.addEventListener('click',()=>nextQ());
+els.answer.addEventListener('keydown',e=>{if(e.key==='Enter'&&!els.check.disabled)checkAnswer();});
+
+function startQuiz(){
+  quiz.n=0; quiz.right=0;
+  els.score.textContent='0/0'; els.feedback.style.display='none'; els.work.textContent='—';
+  nextQ();
+}
+function nextQ(){
+  quiz.n++; 
+  if(quiz.n>10){
+    els.qText.innerHTML=`Round complete! Final score: <b>${quiz.right}/10</b>.`;
+    els.check.disabled=true; els.next.disabled=true;
+    return;
+  }
+
+  // generate parameters (all water, rho = 1000)
+  let D1=rnd(0.12,0.55), D2=rnd(0.09,0.45);
+  let V1v=rnd(0.6,3.0);
+  let rho1v=1000, rho2v=1000;
+
+  const A1v=A(D1), A2v=A(D2);
+  const V2v=(rho1v*V1v*A1v)/(rho2v*A2v);
+  const Q1v=V1v*A1v, Q2v=V2v*A2v, mdot=rho1v*Q1v;
+
+  quiz.solution=V2v;
+
+  // Build "Given" (all five knowns fixed)
+  const givens = [
+    `ρ₁=${rho1v} kg/m³`,
+    `ρ₂=${rho2v} kg/m³`,
+    `D₁=${fmt(D1,3)} m`,
+    `D₂=${fmt(D2,3)} m`,
+    `V₁=${fmt(V1v,3)} m/s`
+  ];
+  els.qText.textContent = `Given ${givens.join(', ')}. Find V₂ (m/s).`;
+  els.solveFor.textContent = 'V₂ (m/s)';
+  els.answer.value=''; els.check.disabled=false; els.next.disabled=true; els.feedback.style.display='none';
+
+  // Worked solution (simplified continuity with rho=1000)
+  const work=`For water (ρ=1000 kg/m³), continuity reduces to V₁A₁ = V₂A₂.
+A₁ = ${fmt(A1v)} m², A₂ = ${fmt(A2v)} m².
+V₂ = V₁ A₁ / A₂ = ${fmt(V2v,4)} m/s.
+Check: Q₁=${fmt(Q1v)} m³/s, Q₂=${fmt(Q2v)} m³/s, ṁ=${fmt(mdot)} kg/s.`;
+  els.work.textContent = work;
+
+  // mirror to Explore animation
+  S.D1=D1; S.D2=D2; S.V1=V1v; S.rho1=rho1v; S.rho2=rho2v; compute();
+  els.D1.value=D1; els.D1n.value=D1; els.D2.value=D2; els.D2n.value=D2;
+  els.V1.value=V1v; els.V1n.value=V1v; els.rho1.value=rho1v; els.rho1n.value=rho1v;
+  els.rho2.value=rho2v; els.rho2n.value=rho2v;
+}
+function checkAnswer(){
+  const user=parseFloat(els.answer.value);
+  if(!Number.isFinite(user)){showFeedback('Please enter a number.','bad');return;}
+  const sol=quiz.solution, absTol=Math.max(0.01,Math.abs(sol)*0.01);
+  const ok=Math.abs(user-sol)<=absTol;
+  if(ok){quiz.right++;showFeedback(`Correct! ✔ V₂ = ${fmt(sol,4)} m/s.`,'good');}
+  else{showFeedback(`Not quite. ✖ V₂ = ${fmt(sol,4)} m/s.`,`bad`);}
+  els.score.textContent=`${quiz.right}/${quiz.n}`; els.check.disabled=true; els.next.disabled=false;
+}
+function showFeedback(msg,kind){const el=els.feedback;el.style.display='block';el.textContent=msg;el.className='pill '+(kind||'warn');}
+function rnd(min,max){return min+Math.random()*(max-min);}
+
+/* ===== Animation loop with clipping ===== */
+function animate(){
+  const fluidPath=drawPipe();
+  ctx.save(); ctx.clip(fluidPath);
+
+  for(const p of particles){ stepParticle(p);
+    ctx.fillStyle='hsla(195,90%,70%,0.95)';
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.radius,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+
+  // Velocity arrows & labels (capped length for readability)
+  const s=40, cap=260;
+  const l1=Math.min(S.V1*s, cap), l2=Math.min(S.V2*s, cap);
+  ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=2;
+  drawArrow(110, geom.cy, 110+l1, geom.cy);
+  drawArrow(scene.width-110-l2, geom.cy, scene.width-110, geom.cy);
+  ctx.fillStyle='#cfe9ff'; ctx.font='12px ui-monospace,monospace';
+  ctx.fillText(`V₁ = ${fmt(S.V1,2)} m/s`, 110, geom.cy-12);
+  ctx.fillText(`V₂ = ${fmt(S.V2,2)} m/s`, scene.width-220, geom.cy-12);
+
+  requestAnimationFrame(animate);
+}
+function drawArrow(x1,y1,x2,y2){
+  const ang=Math.atan2(y2-y1,x2-x1);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-8*Math.cos(ang-Math.PI/6), y2-8*Math.sin(ang-Math.PI/6));
+  ctx.lineTo(x2-8*Math.cos(ang+Math.PI/6), y2-8*Math.sin(ang+Math.PI/6));
+  ctx.closePath(); ctx.fillStyle='rgba(255,255,255,.85)'; ctx.fill();
+}
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
