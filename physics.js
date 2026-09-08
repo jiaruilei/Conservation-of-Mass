@@ -28,15 +28,3 @@ export function sectionAt(state, position) {
   const velocity=state.rho1*state.V1*area(state.D1)/(density*area(diameter));
   return {diameter,density,velocity};
 }
-
-export function makeQuestion(random=Math.random) {
-  const rounded=(min,max)=>Number((min+random()*(max-min)).toFixed(3));
-  const state={D1:rounded(.12,.55),D2:rounded(.09,.45),V1:rounded(.6,3),rho1:1000,rho2:1000};
-  return {state,answer:calculateFlow(state).V2};
-}
-
-export function correctAnswer(raw, expected) {
-  if (String(raw).trim()==='') return false;
-  const value=Number(raw);
-  return Number.isFinite(value) && Math.abs(value-expected)<=Math.max(.01,Math.abs(expected)*.01);
-}
