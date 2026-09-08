@@ -34,4 +34,6 @@ The tests cover continuity, unequal densities, zero flow, input validation and t
 
 GitHub Pages serves the repository root from `main`. Keep `index.html`, `styles.css`, `app.js`, `physics.js` and `particles.js` together. Asset paths are relative so the page works under the repository's Pages path.
 
+The entry script URL includes a release version to avoid reusing older cached playback code. Bump this version when changing the entry script.
+
 This page has no analytics or response-recording service.
