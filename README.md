@@ -1,4 +1,4 @@
-# Conservation of Mass
+# Conservation of Mass (Week 5)
 
 An interactive CE2134 pipe-flow lesson. Adjust the pipe diameters, inlet velocity and fluid densities to explore continuity. The light theme and controls follow the Bernoulli Pipe learning page.
 
@@ -12,7 +12,7 @@ The fixed control volume follows the inside of the pipe wall and closes at two t
 - Equal density also gives equal volume flow. Different densities can give different volume flow while conserving mass.
 - Setting the inlet velocity to zero stops the fluid. Animation can also be paused without changing the flow values.
 
-The pipe uses uniform section velocities. Its smooth diameter and density transitions illustrate continuity, rather than solving the full flow field. Animated tracers fill the pipe and follow the local velocity. Their motion is scaled for visibility, keeping the speed differences between sections. Reduced-motion preferences start the animation paused.
+The pipe uses uniform section velocities. Its smooth diameter and density transitions illustrate continuity, rather than solving the full flow field. Animated tracers fill the pipe and follow the local velocity. Their motion is scaled for visibility, keeping the speed differences between sections. The animation plays by default and can be paused with the animation control.
 
 ## Run and test
 

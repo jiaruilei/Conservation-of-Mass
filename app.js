@@ -7,7 +7,7 @@ const fmt=(n,d=3)=>n!==0&&(Math.abs(n)>=1e5||Math.abs(n)<.0005)?n.toExponential(
 const explore={...DEFAULTS};
 const cv={show:true,region:'volume'};
 const particles=new ParticleField(explore);
-let paused=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let paused=false;
 let flow=calculateFlow(explore),view={width:0,height:0},lastTime=0;
 
 function setInput(key,value){
