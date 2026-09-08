@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DEFAULTS,calculateFlow,sectionAt,makeQuestion,correctAnswer,validInput} from '../physics.js';
+import {DEFAULTS,calculateFlow,sectionAt,validInput} from '../physics.js';
 const close=(a,b)=>assert.ok(Math.abs(a-b)<Math.max(1,Math.abs(b))*1e-10,`${a} != ${b}`);
 test('narrowing the diameter by half increases velocity fourfold',()=>{
   const flow=calculateFlow(DEFAULTS);
@@ -32,14 +32,4 @@ test('invalid edits never enter the physics model',()=>{
   assert.equal(validInput('V1',0),true);
   assert.equal(validInput('D1',0),false);
   assert.throws(()=>calculateFlow({...DEFAULTS,D2:0}),RangeError);
-});
-test('quiz solutions use exactly the shown rounded givens',()=>{
-  for(const r of [0,.012345,.5,.987654,1]){
-    const q=makeQuestion(()=>r);
-    for(const k of ['D1','D2','V1'])assert.equal(q.state[k],Number(q.state[k].toFixed(3)));
-    close(q.answer,calculateFlow(q.state).V2);
-    assert.equal(correctAnswer(q.answer,q.answer),true);
-    assert.equal(correctAnswer(q.answer+Math.max(.01,q.answer*.01)*1.01,q.answer),false);
-  }
-  assert.equal(correctAnswer('',0),false);assert.equal(correctAnswer('no',1),false);
 });

@@ -12,14 +12,10 @@
 <main class="wrap">
   <header class="pageHeader">
     <h1>Conservation of Mass</h1>
-    <div class="switch" aria-label="Learning mode">
-      <button id="modeExplore" class="active" aria-pressed="true">Explore</button>
-      <button id="modeQuiz" aria-pressed="false">Quiz</button>
-    </div>
   </header>
   <div class="layout">
     <section class="controls" id="panelExplore" aria-labelledby="exploreHeading">
-      <h2 id="exploreHeading" class="sectionLabel">Explore Mode</h2>
+      <h2 id="exploreHeading" class="sectionLabel">Pipe settings</h2>
       <div class="row">
         <label for="D1n">Inlet diameter D₁ <span class="unit">(m)</span></label>
         <input id="D1n" class="ctrl" type="number" min="0.05" max="1" step="0.005" value="0.30" aria-describedby="D1error">
@@ -50,38 +46,12 @@
       </div>
       <input id="rho2" type="range" min="0.5" max="1200" step="0.5" value="1000" aria-label="Outlet density">
       <p id="rho2error" class="inputError" hidden></p>
-      <div class="quizActions">
+      <div class="controlActions">
         <button id="lockRho" class="btn secondary">Set ρ₂ = ρ₁</button>
         <button id="resetAll" class="btn secondary">Reset</button>
       </div>
       <h2>Continuity</h2>
       <div class="eq">ρ₁V₁A₁ = ρ₂V₂A₂</div>
-      <p id="densityNote" class="tiny">For equal densities, V₁A₁ = V₂A₂.</p>
-      <p class="tiny">Steady flow with uniform velocity at each section.</p>
-    </section>
-
-    <section class="controls" id="panelQuiz" aria-labelledby="quizHeading" hidden>
-      <h2 id="quizHeading" class="sectionLabel">Quiz Mode</h2>
-      <p class="tiny">Find the outlet velocity for each pipe. Ten questions per round.</p>
-      <p class="quizGivens" id="qText" tabindex="-1">Select Start Quiz to begin.</p>
-      <form id="answerForm">
-        <label for="answer">Outlet velocity V₂ (m/s)</label>
-        <input id="answer" class="ctrl" type="number" step="any" inputmode="decimal" placeholder="Your answer" disabled>
-        <div class="quizActions">
-          <button id="check" class="btn" type="submit" disabled>Check</button>
-          <button id="next" class="btn secondary" type="button" disabled>Next</button>
-        </div>
-      </form>
-      <div class="quizActions">
-        <button id="start" class="btn secondary">Start Quiz</button>
-        <span class="pill">Score: <strong id="score">0/0</strong></span>
-      </div>
-      <p id="feedback" class="pill" role="status" hidden></p>
-      <details id="workedSolution" class="workedSolution" hidden>
-        <summary>Show worked solution</summary>
-        <div id="work" class="eq"></div>
-      </details>
-      <p class="tiny">Answers within 1% or 0.01 m/s are accepted.</p>
     </section>
 
     <section class="visualPanel" aria-label="Pipe flow and control volume">
@@ -99,10 +69,7 @@
       </div>
 
       <section class="cvPanel" id="cvPanel" aria-labelledby="cvHeading">
-        <div class="visualToolbar">
-          <h2 id="cvHeading">Control volume</h2>
-          <label class="toggle"><input id="showNormals" type="checkbox"> Outward normals</label>
-        </div>
+        <h2 id="cvHeading">Control volume</h2>
         <div class="cvTabs" role="group" aria-label="Highlight part of the control volume">
           <button data-region="volume" class="active" aria-pressed="true">Whole volume</button>
           <button data-region="inlet" aria-pressed="false">Inlet</button>
@@ -118,13 +85,6 @@
         <div class="equation" aria-label="Rate of change of mass in the control volume equals mass flow in minus mass flow out">
           <math display="block"><mfrac><mrow><mi>d</mi><msub><mi>m</mi><mtext>CV</mtext></msub></mrow><mrow><mi>d</mi><mi>t</mi></mrow></mfrac><mo>=</mo><msub><mover><mi>m</mi><mo>˙</mo></mover><mtext>in</mtext></msub><mo>−</mo><msub><mover><mi>m</mi><mo>˙</mo></mover><mtext>out</mtext></msub><mo>=</mo><mn>0</mn></math>
         </div>
-        <p class="tiny" id="steadyNote">Steady flow: mass enters and leaves at the same rate. No mass accumulates inside the control volume.</p>
-        <details id="normalDetails">
-          <summary>Flow through the control surface</summary>
-          <p class="tiny">The normal n points out of the control volume. Flow entering is negative and flow leaving is positive in the outward-flux form.</p>
-          <div class="eq">d m<sub>CV</sub>/dt + <span class="termIn">(−ρ₁V₁A₁)</span> + <span class="termOut">(+ρ₂V₂A₂)</span> + <span class="termWall">0 at the wall</span> = 0</div>
-          <p id="fluxValues" class="tiny"></p>
-        </details>
       </section>
 
       <section id="outputs" aria-label="Flow values">

@@ -1,15 +1,14 @@
-import {DEFAULTS,LIMITS,validInput,calculateFlow,sectionAt,makeQuestion,correctAnswer} from './physics.js';
+import {DEFAULTS,LIMITS,validInput,calculateFlow,sectionAt} from './physics.js';
+import {ParticleField} from './particles.js';
 
 const $=id=>document.getElementById(id);
 const canvas=$('scene'),ctx=canvas.getContext('2d');
 const fmt=(n,d=3)=>n!==0&&(Math.abs(n)>=1e5||Math.abs(n)<.0005)?n.toExponential(2):n.toFixed(d);
-let explore={...DEFAULTS},mode='explore';
-const quiz={number:0,right:0,answered:0,question:null,submitted:false};
-const cv={show:true,region:'volume',normals:false};
+const explore={...DEFAULTS};
+const cv={show:true,region:'volume'};
+const particles=new ParticleField(explore);
 let paused=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let flow=calculateFlow(explore),view={width:0,height:0},lastTime=0;
-const activeState=()=>mode==='quiz'&&quiz.question?quiz.question.state:explore;
-const concealAnswer=()=>mode==='quiz'&&!quiz.submitted;
 
 function setInput(key,value){
   explore[key]=value;
@@ -35,40 +34,18 @@ for(const [key,[min,max]] of Object.entries(LIMITS)){
 $('lockRho').addEventListener('click',()=>{setInput('rho2',explore.rho1);update();});
 $('resetAll').addEventListener('click',()=>{
   for(const [key,value] of Object.entries(DEFAULTS))setInput(key,value);
-  cv.show=true;cv.region='volume';cv.normals=false;
-  $('toggleCV').checked=true;$('showNormals').checked=false;
-  $('normalDetails').open=false;updateCV();update();
+  cv.show=true;cv.region='volume';
+  $('toggleCV').checked=true;updateCV();
 });
 
-function setMode(next){
-  mode=next;
-  for(const name of ['explore','quiz']){
-    const key=name==='explore'?'Explore':'Quiz';
-    $('panel'+key).hidden=name!==mode;
-    $('mode'+key).classList.toggle('active',name===mode);
-    $('mode'+key).setAttribute('aria-pressed',String(name===mode));
-  }
-  update();
-}
-$('modeExplore').addEventListener('click',()=>setMode('explore'));
-$('modeQuiz').addEventListener('click',()=>setMode('quiz'));
-
 function update(){
-  const state=activeState();flow=calculateFlow(state);
+  const state=explore;flow=calculateFlow(state);
   for(const key of ['A1','A2','V2','Q1','Q2'])$(key).textContent=fmt(flow[key]);
   $('mdot').textContent=fmt(flow.massIn);
   $('massIn').textContent=fmt(flow.massIn);$('massOut').textContent=fmt(flow.massOut);
   $('accumulation').textContent=fmt(flow.accumulation);
-  $('densityNote').textContent=state.V1===0?'With no flow, Q₁ = Q₂ = 0.':state.rho1===state.rho2
-    ?'For equal densities, V₁A₁ = V₂A₂ and Q₁ = Q₂.'
-    :'Mass flow stays equal. With different densities, Q₁ and Q₂ are different.';
-  $('steadyNote').textContent=state.V1===0
-    ?'The fluid is at rest. Mass flow and accumulation are both zero.'
-    :'Steady flow: mass enters and leaves at the same rate. No mass accumulates inside the control volume.';
-  $('fluxValues').textContent=`Inlet: −${fmt(flow.massIn)} kg/s. Outlet: +${fmt(flow.massOut)} kg/s. Wall: 0 kg/s.`;
-  const hide=concealAnswer();
-  $('outputs').hidden=hide;$('balanceGrid').hidden=hide;$('fluxValues').hidden=hide;
-  canvas.setAttribute('aria-label',`Steady pipe flow from inlet section 1 to outlet section 2. ${cv.show?'The fixed control volume follows the pipe wall and is closed by the inlet and outlet faces. ':''}V₁ is ${fmt(state.V1)} metres per second. ${hide?'Find V₂ in the quiz.':`V₂ is ${fmt(flow.V2)} metres per second. Mass entering and leaving is ${fmt(flow.massIn)} kilograms per second. Accumulation is zero.`}`);
+  canvas.setAttribute('aria-label',`Pipe flow from inlet section 1 to outlet section 2. ${cv.show?'The fixed control volume follows the pipe wall and is closed by the inlet and outlet faces. ':''}V₁ is ${fmt(state.V1)} metres per second. V₂ is ${fmt(flow.V2)} metres per second. Mass entering and leaving is ${fmt(flow.massIn)} kilograms per second. Accumulation is zero.`);
+  refreshParticles();
   draw();
 }
 
@@ -84,15 +61,10 @@ function updateCV(){
     const selected=button.dataset.region===cv.region;
     button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected));
   }
-  let text=descriptions[cv.region];
-  if(cv.normals&&cv.region==='inlet')text+=' The outward normal n₁ points against the flow, so V · n is negative.';
-  if(cv.normals&&cv.region==='outlet')text+=' The outward normal n₂ points with the flow, so V · n is positive.';
-  if(cv.normals&&cv.region==='wall')text+=' Velocity has no component through the wall, so V · n = 0.';
-  $('cvExplanation').textContent=text;
+  $('cvExplanation').textContent=descriptions[cv.region];
   update();
 }
 $('toggleCV').addEventListener('change',event=>{cv.show=event.target.checked;updateCV();});
-$('showNormals').addEventListener('change',event=>{cv.normals=event.target.checked;updateCV();});
 for(const button of document.querySelectorAll('[data-region]'))button.addEventListener('click',()=>{
   cv.region=button.dataset.region;updateCV();
 });
@@ -103,50 +75,10 @@ function updatePause(){
 $('pauseFlow').addEventListener('click',()=>{paused=!paused;updatePause();});
 updatePause();
 
-function startQuiz(){
-  Object.assign(quiz,{number:0,right:0,answered:0,question:null,submitted:false});
-  $('start').textContent='Restart quiz';setMode('quiz');nextQuestion();
-}
-function nextQuestion(){
-  if(quiz.number===10){
-    $('qText').textContent=`Round complete. You answered ${quiz.right} of 10 correctly.`;
-    $('next').disabled=true;$('answer').disabled=true;$('check').disabled=true;
-    $('qText').focus();return;
-  }
-  quiz.number++;quiz.question=makeQuestion();quiz.submitted=false;
-  const s=quiz.question.state;
-  $('qText').textContent=`Question ${quiz.number} of 10\nD₁ = ${fmt(s.D1)} m\nD₂ = ${fmt(s.D2)} m\nV₁ = ${fmt(s.V1)} m/s\nρ₁ = ρ₂ = 1000 kg/m³\nFind V₂ (m/s).`;
-  $('answer').value='';$('answer').disabled=false;$('answer').setAttribute('aria-invalid','false');
-  $('check').disabled=false;$('next').disabled=true;$('feedback').hidden=true;
-  $('workedSolution').hidden=true;$('workedSolution').open=false;$('work').textContent='';
-  $('score').textContent=`${quiz.right}/${quiz.answered}`;
-  update();$('qText').focus();
-}
-$('start').addEventListener('click',startQuiz);
-$('next').addEventListener('click',nextQuestion);
-$('answerForm').addEventListener('submit',event=>{
-  event.preventDefault();if(!quiz.question||quiz.submitted)return;
-  const raw=$('answer').value;
-  if(raw.trim()===''||!Number.isFinite(Number(raw))){
-    $('answer').setAttribute('aria-invalid','true');
-    $('feedback').textContent='Enter your answer first.';$('feedback').className='pill warn';$('feedback').hidden=false;return;
-  }
-  quiz.submitted=true;quiz.answered++;
-  const ok=correctAnswer(raw,quiz.question.answer);if(ok)quiz.right++;
-  $('feedback').textContent=`${ok?'Correct.':'Not quite.'} V₂ = ${fmt(quiz.question.answer,4)} m/s.`;
-  $('feedback').className='pill '+(ok?'good':'bad');$('feedback').hidden=false;
-  $('answer').setAttribute('aria-invalid','false');$('answer').disabled=true;
-  $('check').disabled=true;$('next').disabled=false;$('score').textContent=`${quiz.right}/${quiz.answered}`;
-  const s=quiz.question.state,f=calculateFlow(s);
-  $('work').textContent=`For equal densities, V₁A₁ = V₂A₂.\nA = πD²/4\nV₂ = V₁(D₁/D₂)²\n= ${fmt(s.V1)} × (${fmt(s.D1)}/${fmt(s.D2)})²\n= ${fmt(f.V2,4)} m/s.\nMass entering = mass leaving = ${fmt(f.massIn)} kg/s.`;
-  $('workedSolution').hidden=false;update();
-});
-
 // Canvas coordinates use CSS pixels, so labels remain readable on small screens.
 const colors={inlet:'#2563eb',outlet:'#047857',wall:'#b45309',boundary:'#7c3aed',ink:'#142033'};
-const tracers=Array.from({length:120},(_,i)=>({t:((i%24)+.5)/24,lane:(Math.floor(i/24)-2)*.34}));
 function geometry(){
-  const {width:w,height:h}=view,state=activeState();
+  const {width:w,height:h}=view,state=explore;
   const left=w<450?24:48,right=w-left,cy=h*.51;
   const maxRadius=Math.min(h*.19,w*.20,76);
   const radius=t=>sectionAt(state,t).diameter/Math.max(state.D1,state.D2)*maxRadius;
@@ -188,7 +120,7 @@ function face(g,t,color,selected){
 }
 function draw(){
   if(!view.width)return;
-  const state=activeState(),g=geometry(),dpr=window.devicePixelRatio||1;
+  const state=explore,g=geometry(),dpr=window.devicePixelRatio||1;
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,g.w,g.h);
   ctx.fillStyle='#fff';ctx.fillRect(0,0,g.w,g.h);
   const fluid=pipePath(g);
@@ -198,7 +130,12 @@ function draw(){
   ctx.fillStyle=gradient;ctx.fill(fluid);
   if(cv.show){ctx.fillStyle=cv.region==='volume'?'#7c3aed16':'#7c3aed08';ctx.fill(pipePath(g,g.start,g.end));}
   ctx.save();ctx.clip(fluid);ctx.fillStyle='#0369a1';
-  for(const p of tracers){ctx.beginPath();ctx.arc(g.x(p.t),g.cy+p.lane*g.radius(p.t),g.w<450?1.7:2.1,0,Math.PI*2);ctx.fill();}
+  const dotRadius=g.w<450?1.55:1.9;
+  for(const p of particles.particles){
+    const radius=g.radius(p.t),dot=Math.min(dotRadius,radius*.4);
+    const y=g.cy+p.lane*Math.max(0,radius-dot-1);
+    ctx.beginPath();ctx.arc(g.x(p.t),y,dot,0,Math.PI*2);ctx.fill();
+  }
   ctx.restore();
   // Transparent transverse faces close the CV; its side boundary lies at the wall.
   if(cv.show){
@@ -221,36 +158,28 @@ function draw(){
     arrow(b-length,g.cy,b+length,g.cy,colors.outlet,3);
   }
   const y=g.cy+Math.max(g.radius(0),g.radius(1))+29;
-  label(`V₁ = ${fmt(state.V1,mode==='quiz'?3:2)}`,a,y,colors.inlet,font);
-  label(concealAnswer()?'V₂ = ?':`V₂ = ${fmt(flow.V2,2)}`,b,y,colors.outlet,font);
+  label(`V₁ = ${fmt(state.V1,2)}`,a,y,colors.inlet,font);
+  label(`V₂ = ${fmt(flow.V2,2)}`,b,y,colors.outlet,font);
   label('m/s',g.w/2,y,'#5d6b7d',12);
-  if(cv.show&&cv.normals){
-    const ny=Math.min(g.h-27,y+42);
-    ctx.save();ctx.strokeStyle='#c4b5fd';ctx.setLineDash([3,3]);
-    for(const [x,t] of [[a,g.start],[b,g.end]]){ctx.beginPath();ctx.moveTo(x,g.cy+g.radius(t));ctx.lineTo(x,ny);ctx.stroke();}ctx.restore();
-    arrow(a,ny,a-length,ny,colors.boundary);arrow(b,ny,b+length,ny,colors.boundary);
-    label('n₁',a-length/2,ny-14,colors.boundary,13);label('n₂',b+length/2,ny-14,colors.boundary,13);
-    if(cv.region==='wall'){
-      const t=.5,x=g.x(t),wy=g.cy-g.radius(t);
-      const derivative=(g.radius(t+.001)-g.radius(t-.001))/(.002*(g.right-g.left));
-      const norm=Math.hypot(derivative,1),dx=-derivative/norm*30,dy=-1/norm*30;
-      arrow(x,wy,x+dx,wy+dy,colors.wall);label('n',x+dx+12,wy+dy,colors.wall,13);
-    }
-  }
+}
+
+function refreshParticles(){
+  if(!view.width)return;
+  const g=geometry();
+  let radiusSum=0;
+  for(let i=0;i<40;i++)radiusSum+=g.radius((i+.5)/40);
+  const drawnArea=(g.right-g.left)*2*radiusSum/40;
+  const count=Math.max(360,Math.min(1000,Math.round(drawnArea/105)));
+  particles.configure(explore,count);
 }
 function resize(){
   const rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
-  view={width:rect.width,height:rect.height};canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);draw();
+  view={width:rect.width,height:rect.height};canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);refreshParticles();draw();
 }
 new ResizeObserver(resize).observe(canvas);
 function animate(time){
   const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;
-  if(!paused&&!document.hidden){
-    const state=activeState();let peak=0;
-    for(let i=0;i<=20;i++)peak=Math.max(peak,sectionAt(state,i/20).velocity);
-    const scale=Math.min(1,8/(peak||1))*.028;
-    for(const p of tracers)p.t=(p.t+sectionAt(state,p.t).velocity*scale*dt)%1;
-  }
+  if(!paused&&!document.hidden)particles.advance(dt);
   draw();requestAnimationFrame(animate);
 }
 updateCV();requestAnimationFrame(animate);

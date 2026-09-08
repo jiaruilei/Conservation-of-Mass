@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 const root=path.dirname(fileURLToPath(import.meta.url));
-const files={'/':'index.html','/index.html':'index.html','/styles.css':'styles.css','/app.js':'app.js','/physics.js':'physics.js'};
+const files={'/':'index.html','/index.html':'index.html','/styles.css':'styles.css','/app.js':'app.js','/physics.js':'physics.js','/particles.js':'particles.js'};
 http.createServer(async(req,res)=>{
   const name=files[new URL(req.url,'http://localhost').pathname];
   if(req.method!=='GET'||!name){res.writeHead(404).end();return;}
